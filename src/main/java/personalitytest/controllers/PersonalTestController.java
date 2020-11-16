@@ -87,11 +87,9 @@ public class PersonalTestController {
 	@PostMapping(Constants.Paths.SAVE_ANSWERS_PATH)
 	public ResponseEntity<String> saveAnswers(@PathVariable String category, @RequestBody String answerDetails) {
 		try {
-			System.out.println("answerDetails: " + answerDetails);
 			JsonObject answerDetailsObj = JsonParser.parseString(answerDetails).getAsJsonObject();
 			String string = ElasticClientOperations.getInstance()
 					.saveAnswerDetails(category, answerDetailsObj, ApiConfig.getAnswerIndexName()).toString();
-			System.out.println("string: " + string);
 			return ResponseEntity.ok(string);
 		} catch (Exception e) {
 			logger.error(Constants.ErrorMessages.SAVE_ANSWERS_ERROR, e);

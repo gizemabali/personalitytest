@@ -1,0 +1,32 @@
+<div><app-party></app-party></div>
+ <form #f="ngForm" (ngSubmit)="onSubmit(f.value)">
+    <div *ngIf="displayValue" style="margin:center;text-align: center;">{{statusData.response}}</div>
+    <div class="row" style="margin:center;text-align: center;">
+         <div> selected category: {{infoService.category}} </div>
+         <div class="col-sm-6"><h4>Nickname:</h4></div>
+         <div class="col-sm-6"><input name="nickname" ngModel required #first="ngModel"></div>
+   </div>
+
+   <div *ngFor="let item of infoService.questions" class="container-fluid">
+
+             
+	   <div class="row" >
+	     <div class="col-sm-6"> <p>{{item.question}}</p></div>
+	     <div class="col-sm-6">  <label><div style="font-weight: 900;">Question type:</div> <div>{{item.type}}</div></label></div>
+	     <div class="col-sm-12">   
+	     
+	     <select name="{{item.question}}" id="{{item.question}}" ngModel required>
+	        <option selected disabled value="">Choose one</option>
+	        <option style="width:160px;" class="col-sm-12" *ngFor="let optionvalue of item.options" value="{{optionvalue}}" ng-selected="data.unit == item.id" ng-repeat="item in units" ng-value="item.id"> 
+	      {{optionvalue}} </option>
+	  
+	     </select>
+	    </div> 
+	
+	  </div>
+
+
+	</div>
+
+   <div class="col-sm-12" style="margin:center;text-align: center;"><button type="submit">Send Answers</button></div>
+</form>

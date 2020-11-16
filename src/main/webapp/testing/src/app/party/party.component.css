@@ -1,0 +1,11 @@
+li {
+    padding-left:2%;
+}
+
+form div {
+  margin: auto;
+  width: 75%;
+  padding: 10px;
+  font-family: "Lucida Console", Courier, monospace;
+}
+

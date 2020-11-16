@@ -1,0 +1,23 @@
+li {
+    padding-left:2%;
+}
+
+div {
+  margin: auto;
+  width: 95%;
+  box-shadow: 10px 10px 5px grey;
+  padding: 10px;
+  font-family: "Lucida Console", Courier, monospace;
+}
+
+div div {
+  margin: auto;
+  width: 95%;
+  box-shadow: 0px 0px 0px grey;
+  padding: 10px;
+  font-family: "Lucida Console", Courier, monospace;
+}
+
+option {
+	width: 75%;
+}

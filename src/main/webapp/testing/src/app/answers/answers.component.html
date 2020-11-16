@@ -1,0 +1,25 @@
+
+ <form #f="ngForm" (ngSubmit)="onSubmit(f)" novalidate>
+ 
+       <div class="row" style="margin:center;text-align: center;">
+         <div class="col-sm-6"><h4>Search with nickname:</h4></div>
+         <div class="col-sm-6"><input name="nickname" ngModel required #first="ngModel"></div>
+       </div>
+       <div class="col-sm-12" style="margin:center;text-align: center;"><button type="submit">Send</button></div>
+ </form>
+ 
+ <div class="row"> 
+ <div class="col-sm-3"> Questions </div>
+ <div class="col-sm-3"> Question category/Answer </div>
+ <div class="col-sm-3"> Answer date </div>
+ </div>
+ <div *ngFor="let answer of answers">
+      
+      <div *ngFor="let item of answer.answers; index as i" class="row" style="margin:center;">
+         <div class="col-sm-3"> {{i+1}}. {{item.question}} </div>
+         <div class="col-sm-3"> {{answer.category}} / {{item.answer}} </div>
+         <div class="col-sm-3"> {{answer.date}} </div>
+      </div>
+ </div>
+ 
+ 

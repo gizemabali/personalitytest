@@ -1,0 +1,22 @@
+
+<form #c="ngForm" (ngSubmit)="onSubmit(c)" novalidate>
+    <div class="row" style="margin:auto;text-align: center;"> <div class="col-sm-12">
+    
+    	<p style="color:blue;font-weight: 900;">Welcome to the Personal Test!</p>
+    	<p> Select a question category: </p>
+    </div>
+    
+    <div class="col-sm-12">       
+              <select name="category" id="category" ngModel>
+                   <option selected disabled value="">Choose one</option>
+	               <option class="col-sm-12" *ngFor="let optionvalue of categories" value="{{optionvalue}}" ng-selected="data.unit == item.id" ng-repeat="item in units" ng-value="item.id"> {{optionvalue}} </option>
+	              
+	          </select> 
+	</div>
+	          
+	<div class="col-sm-12">
+	   <button type="submit">Get New Questions!</button>
+	</div>
+	</div>
+	
+</form>

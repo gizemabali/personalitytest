@@ -75,7 +75,7 @@ public class Constants {
 
 		public static final String GET_ANSWERS_PATH = "/answers/{nickname}";
 
-		public static final String SAVE_ANSWERS_PATH = "/answers/{category}";
+		public static final String SAVE_ANSWERS_PATH = "/answers/save/{category}";
 	}
 
 	/**
