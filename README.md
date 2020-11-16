@@ -38,9 +38,7 @@ NOTE 3: the scripts for the elasticsearch can be found in the script folder.
 - system-rules 1.19.0
 
 # elastic docker
-```
-chmod +x index.sh
-./index.sh
+
 ```
 docker run --name personaltestelastic -p 9200:9200 -p 9300:9300 -e "discovery.type=single-node" docker.elastic.co/elasticsearch/elasticsearch:7.7.0
 ```
