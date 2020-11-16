@@ -55,3 +55,5 @@ chmod +x data.sh
 ./data.sh
 
 ```
+
+Client project is in the other repository: https://github.com/gizemabali/personalitytestclient
