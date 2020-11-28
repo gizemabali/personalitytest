@@ -4,7 +4,7 @@ curl -X PUT "localhost:9200/_template/template_answers?pretty" -H 'Content-Type:
 '
 
 curl -X PUT "localhost:9200/_template/template_question?pretty" -H 'Content-Type: application/json' -d'
-{"template_question":{"order":0,"index_patterns":["question*"],"settings":{},"mappings":{"_source":{"enabled":true},"properties":{"question":{"type":"keyword"},"question_type":{"type":"nested","properties":{"options":{"type":"keyword"},"type":{"type":"keyword"}}},"category":{"type":"keyword"}}},"aliases":{}}}
+{"index_patterns":["question*"],"settings":{},"mappings":{"_source":{"enabled":true},"properties":{"question":{"type":"keyword"},"question_type":{"type":"nested","properties":{"options":{"type":"keyword"},"type":{"type":"keyword"}}},"category":{"type":"keyword"}}},"aliases":{}}
 '
 
 

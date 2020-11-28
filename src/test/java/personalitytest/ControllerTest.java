@@ -4,9 +4,6 @@ import static org.junit.Assert.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import java.io.IOException;
-import java.net.UnknownHostException;
-
 import org.elasticsearch.client.RestHighLevelClient;
 import org.junit.Before;
 import org.junit.ClassRule;
@@ -49,12 +46,18 @@ public class ControllerTest {
 	public final static EnvironmentVariables environmentVariables = new EnvironmentVariables();
 
 	@Before
-	public void setUp() throws UnknownHostException, InterruptedException {
+	public void setUp() throws Exception {
 		environmentVariables.set(Constants.QUESTION_INDEX_ENV, TEST_INDEX);
 		environmentVariables.set(Constants.ANSWER_INDEX_ENV, TEST_ANSWER_INDEX);
 		ClientConfiguration clientConfiguration = ClientConfiguration.builder().connectedTo("localhost:9200").build();
 		testClient = RestClients.create(clientConfiguration).rest();
-		operations = Mockito.spy(new ElasticClientOperations());
+		operations = Mockito.mock(ElasticClientOperations.class);
+		Mockito.doCallRealMethod().when(operations).getCategories(Mockito.anyString());
+		Mockito.doCallRealMethod().when(operations).setClient(Mockito.any(RestHighLevelClient.class));
+		Mockito.doCallRealMethod().when(operations).getQuestionDetails(Mockito.anyString(), Mockito.anyString());
+		Mockito.doCallRealMethod().when(operations).getAnswers(Mockito.anyString(), Mockito.anyString());
+		Mockito.doCallRealMethod().when(operations).saveAnswerDetails(Mockito.anyString(), Mockito.any(), Mockito.anyString());
+		Mockito.doCallRealMethod().when(operations).indexDocument(Mockito.anyString(), Mockito.any(), Mockito.anyString());
 		Mockito.when(operations.getCurrentDate()).thenReturn("2020-11-15 23:40:57");
 		operations.setClient(testClient);
 		clientUtils = new ClientUtils(testClient);
@@ -147,7 +150,6 @@ public class ControllerTest {
 		MockHttpServletResponse resp = response.getResponse();
 		String responseStr = resp.getContentAsString();
 
-		System.out.println("responseStr: " + responseStr);
 		// assert
 		String expectedResponse = "{\"response\":\"Answers were saved for the hard_fact category!\"}";
 		assertEquals("expectedResponse has to be a success response!",
@@ -166,8 +168,8 @@ public class ControllerTest {
 				JsonObject documentObj = initialQuestions.get(i).getAsJsonObject();
 				operations.indexDocument(TEST_ANSWER_INDEX, documentObj,
 						documentObj.get("nickname").getAsString() + "_" + documentObj.get("category").getAsString());
-			} catch (IOException e) {
-				e.printStackTrace();
+			} catch (Exception e) {
+				System.err.println("could not index data");
 			}
 		}
 		clientUtils.refresh(TEST_ANSWER_INDEX);
@@ -199,8 +201,8 @@ public class ControllerTest {
 		for (int i = 0; i < initialQuestions.size(); i++) {
 			try {
 				operations.indexDocument(TEST_INDEX, initialQuestions.get(i).getAsJsonObject(), String.valueOf(i));
-			} catch (IOException e) {
-				e.printStackTrace();
+			} catch (Exception e) {
+				System.err.println("could not index data");
 			}
 		}
 	}

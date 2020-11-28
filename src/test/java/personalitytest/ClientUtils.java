@@ -16,6 +16,12 @@ import org.elasticsearch.client.indices.PutIndexTemplateRequest;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentType;
 
+/**
+ * This class is used to perform elastic operations for testing.
+ * 
+ * @author gizemabali
+ *
+ */
 public class ClientUtils {
 
 	private RestHighLevelClient testClient = null;
@@ -24,13 +30,13 @@ public class ClientUtils {
 		this.testClient = testClient;
 	}
 
-	public boolean indexAvailable(String indexName) {
+	public boolean indexAvailable(String index) {
 		boolean indexExists = false;
-		GetIndexRequest indexRequest = new GetIndexRequest(indexName);
+		GetIndexRequest indexRequest = new GetIndexRequest(index);
 		try {
 			indexExists = testClient.indices().exists(indexRequest, RequestOptions.DEFAULT);
 		} catch (Throwable e) {
-			e.printStackTrace();
+			System.err.println(String.format("could not check if the index is available! index: %s", index));
 		}
 		return indexExists;
 	}
@@ -42,7 +48,7 @@ public class ClientUtils {
 		try {
 			deleteIndexResponse = testClient.indices().delete(request, RequestOptions.DEFAULT);
 		} catch (IOException e) {
-			e.printStackTrace();
+			System.err.println(String.format("could not delete index! index: %s", index));
 		}
 		isAcknowledged = deleteIndexResponse.isAcknowledged();
 		return isAcknowledged;
@@ -55,7 +61,7 @@ public class ClientUtils {
 		try {
 			response = testClient.indices().putTemplate(request, RequestOptions.DEFAULT);
 		} catch (Exception e) {
-			e.printStackTrace();
+			System.err.println(String.format("could not create template! template: %s", templateName));
 		}
 		return response.isAcknowledged();
 	}
@@ -72,7 +78,7 @@ public class ClientUtils {
 		try {
 			createIndexResp = testClient.indices().create(createIndexReq, RequestOptions.DEFAULT);
 		} catch (IOException e) {
-			e.printStackTrace();
+			System.err.println(String.format("could not create index! index: %s", index));
 		}
 		return createIndexResp.isAcknowledged();
 	}
@@ -82,7 +88,7 @@ public class ClientUtils {
 		try {
 			testClient.indices().refresh(refreshRequest, RequestOptions.DEFAULT);
 		} catch (IOException e) {
-			e.printStackTrace();
+			System.err.println(String.format("could not refresh index! index: %s", index));
 		}
 	}
 

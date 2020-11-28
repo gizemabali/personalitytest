@@ -42,11 +42,17 @@ public class Constants {
 	public static final String CATEGORIES = "categories";
 
 	public static final String NICKNAME_ATTRIBUTE = "nickname";
+
+	public static final String DATE = "date";
 	
 	public static final String ELASTIC_PORT = "ELASTIC_PORT";
+	
 	public static final String ELASTIC_HOSTNAME = "ELASTIC_HOSTNAME";
+	
 	public static final String LOCALHOST = "localhost";
+	
 	public static final String ANSWER_INDEX_ENV = "ANSWER_INDEX_ENV";
+	
 	public static final String QUESTION_INDEX_ENV = "QUESTION_INDEX_ENV";
 
 	/**
@@ -102,5 +108,10 @@ public class Constants {
 		public static final String GET_QUESTION_DETAILS_ERROR = "getQuestionDetailsError";
 
 		public static final String SAVE_ANSWERS_ERROR = "saveAnswersError";
+		
+		public static final String YOUR_ANSWERS_COULD_NOT_BE_SAVED_PLEASE_DO_NOT_ENTER_AN_EMPTY_NICKNAME = "Your answers could not be saved. Please do not enter an empty nickname!";
+
+		public static final String YOUR_ANSWERS_COULD_NOT_BE_SAVED_PLEASE_BE_SURE_THAT_YOU_ANSWERED_ALL_QUESTIONS = "Your answers could not be saved. Please be sure that you answered all questions!";
+
 	}
 }

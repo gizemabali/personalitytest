@@ -1,6 +1,5 @@
 package personalitytest;
 
-import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
@@ -25,6 +24,7 @@ import org.elasticsearch.search.aggregations.bucket.terms.Terms;
 import org.elasticsearch.search.aggregations.bucket.terms.TermsAggregationBuilder;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 
 import com.google.gson.Gson;
@@ -44,7 +44,7 @@ import com.google.gson.JsonParser;
 @Component
 public class ElasticClientOperations {
 
-	public static final Logger logger = LogManager.getLogger(ElasticClientOperations.class);
+	private static final Logger logger = LogManager.getLogger(ElasticClientOperations.class);
 
 	/**
 	 * This is a rest client of elastic to perform elastic requests.
@@ -55,7 +55,10 @@ public class ElasticClientOperations {
 	/**
 	 * Singleton ElasticClientOperations instance.
 	 */
-	private static ElasticClientOperations operations = new ElasticClientOperations();
+	private final static ElasticClientOperations operations = new ElasticClientOperations();
+
+	private ElasticClientOperations() {
+	};
 
 	/**
 	 * set client
@@ -65,6 +68,17 @@ public class ElasticClientOperations {
 	@Autowired
 	public void setClient(RestHighLevelClient restClient) {
 		client = restClient;
+	}
+
+	public boolean closeClient() {
+		boolean isClosed = false;
+		try {
+			client.close();
+			isClosed = true;
+		} catch (Exception e) {
+			logger.error("could not close the client!", e);
+		}
+		return isClosed;
 	}
 
 	/**
@@ -80,8 +94,9 @@ public class ElasticClientOperations {
 	 * 
 	 * @param indexName it is the name of the index which will be searched.
 	 * @return a json object that has categories.
+	 * @throws Exception
 	 */
-	public JsonObject getCategories(String indexName) {
+	public JsonObject getCategories(String indexName) throws Exception {
 		logger.debug(String.format("getting categories! indexName \"%s\"", indexName));
 		JsonObject responseObj = new JsonObject();
 		responseObj.add(Constants.CATEGORIES, new JsonArray());
@@ -89,16 +104,15 @@ public class ElasticClientOperations {
 		SearchSourceBuilder builder = new SearchSourceBuilder().aggregation(aggregation);
 
 		SearchRequest searchRequest = new SearchRequest().indices(indexName).source(builder);
-		SearchResponse response = null;
 		try {
-			response = client.search(searchRequest, RequestOptions.DEFAULT);
+			SearchResponse response = client.search(searchRequest, RequestOptions.DEFAULT);
+			Terms subRequestIdTerms = response.getAggregations().get(Constants.TOP_TAGS);
+			for (Terms.Bucket subRequestIdBucket : subRequestIdTerms.getBuckets()) {
+				responseObj.get(Constants.CATEGORIES).getAsJsonArray().add(subRequestIdBucket.getKeyAsString());
+			}
 		} catch (Exception e) {
 			logger.error(Constants.ErrorMessages.COULD_NOT_SEARCH_IN_ELASTIC, e);
-		}
-
-		Terms subRequestIdTerms = response.getAggregations().get(Constants.TOP_TAGS);
-		for (Terms.Bucket subRequestIdBucket : subRequestIdTerms.getBuckets()) {
-			responseObj.get(Constants.CATEGORIES).getAsJsonArray().add(subRequestIdBucket.getKeyAsString());
+			throw e;
 		}
 		logger.info(String.format("got all categories! responseObj %s", responseObj.toString()));
 		return responseObj;
@@ -156,8 +170,13 @@ public class ElasticClientOperations {
 	 * 
 	 * Saving operation can or cannot be performed according to the following conditions.
 	 * <ul>
+	 * <li>First, it is checked that the answer details object has nickname attribute
+	 * {@value Constants.NICKNAME_ATTRIBUTE}. If it doesn't have it, error response is returned to the user.</li>
+	 * <li>Secondly, answer details object is controlled if all questions are answered (they don't have empty answers)
+	 * and answer object to index is created.</li>
 	 * <li>In order to save the answers, answers of the questions that are related to the given category must be sent
-	 * first time.</li>
+	 * first time. In order to control it, a search question is sent to the elastic index. If any error occur, error
+	 * response is returned to the user.</li>
 	 * <li>If elastic operations cannot be performed the answers cannot be saved.</li>
 	 * <li>Otherwise, the answers will be saved to the index related to the given indexName.</li>
 	 * </ul>
@@ -168,53 +187,128 @@ public class ElasticClientOperations {
 	 * @return a json object that has the information of the saving operation.
 	 * @throws throws an Exception if any problem occur.
 	 */
-	public JsonObject saveAnswerDetails(String category, JsonObject answerDetailsObj, String indexName)
+	public ResponseEntity<String> saveAnswerDetails(String category, JsonObject answerDetailsObj, String indexName)
 			throws Exception {
 		logger.debug(String.format("saving answer details category \"%s\", indexName \"%s\"", category, indexName));
 		JsonObject responseObj = new JsonObject();
 		JsonObject answerObj = new JsonObject();
-		answerObj.addProperty(Constants.NICKNAME_ATTRIBUTE,
-				answerDetailsObj.get(Constants.NICKNAME_ATTRIBUTE).getAsString());
-		answerDetailsObj.remove(Constants.NICKNAME_ATTRIBUTE);
-		answerObj.addProperty("date", getCurrentDate());
-		answerObj.addProperty(Constants.CATEGORY, category);
-		answerObj.add(Constants.ANSWERS, new JsonArray());
+		boolean isSaved = false;
+		boolean isValid = true;
+		Exception exception = null;
+		int statusCode = 200;
+		if (answerDetailsObj.has(Constants.NICKNAME_ATTRIBUTE)
+				&& !answerDetailsObj.get(Constants.NICKNAME_ATTRIBUTE).getAsString().isEmpty()) {
+			answerObj.addProperty(Constants.NICKNAME_ATTRIBUTE,
+					answerDetailsObj.get(Constants.NICKNAME_ATTRIBUTE).getAsString());
+		} else {
+			responseObj.addProperty(Constants.RESPONSE,
+					Constants.ErrorMessages.YOUR_ANSWERS_COULD_NOT_BE_SAVED_PLEASE_DO_NOT_ENTER_AN_EMPTY_NICKNAME);
+			isValid = false;
+			statusCode = 422;
+		}
+		if (isValid) {
+			answerDetailsObj.remove(Constants.NICKNAME_ATTRIBUTE);
+			answerObj.addProperty(Constants.DATE, getCurrentDate());
+			answerObj.addProperty(Constants.CATEGORY, category);
+			answerObj.add(Constants.ANSWERS, new JsonArray());
+			isValid = validateAndCreateAnswerDocument(answerDetailsObj, responseObj, answerObj);
+			if (isValid) {
+				String nickname = answerObj.get(Constants.NICKNAME_ATTRIBUTE).getAsString();
+				String id = nickname + "_" + category;
+				try {
+					String document = getById(indexName, id);
+					if (document == null) {
+						try {
+							String docId = indexDocument(indexName, answerObj, id);
+							if (docId != null) {
+								responseObj.addProperty(Constants.RESPONSE, String.format(
+										Constants.ErrorMessages.ANSWERS_WERE_SAVED_FOR_THE_S_CATEGORY, category));
+								isSaved = true;
+							} else {
+								responseObj.addProperty(Constants.RESPONSE,
+										Constants.ErrorMessages.UNEXPECTED_ERROR_OCCUR_PLEASE_TRY_AGAIN);
+								statusCode = 500;
+							}
+						} catch (Exception e) {
+							responseObj.addProperty(Constants.RESPONSE,
+									Constants.ErrorMessages.UNEXPECTED_ERROR_OCCUR_PLEASE_TRY_AGAIN);
+							exception = e;
+							statusCode = 500;
+						}
+					} else {
+						responseObj.addProperty(Constants.RESPONSE, String.format(
+								Constants.ErrorMessages.ANSWERS_WERE_SAVED_BEFORE_FOR_THE_S_CATEGORY_BY_THE_NICKNAME_S_PLEASE_USE_A_DIFFERENT_NICKNAME,
+								category, nickname));
+						statusCode = 400;
+					}
+				} catch (Exception e) {
+					responseObj.addProperty(Constants.RESPONSE,
+							Constants.ErrorMessages.UNEXPECTED_ERROR_OCCUR_PLEASE_TRY_AGAIN);
+					exception = e;
+					statusCode = 500;
+				}
+			} else {
+				statusCode = 422;
+			}
+		}
+		String message = String.format("response: %s, index: %s, category: %s, answerDetailsObj: %s",
+				responseObj.toString(), indexName, category, answerDetailsObj.toString());
+		if (isSaved) {
+			logger.info("Saved questions! " + message);
+		} else {
+			if (exception == null) {
+				logger.error("Could not save answers! " + message);
+			} else {
+				logger.error("Could not save answers! " + message, exception);
+			}
+		}
+		return ResponseEntity.status(statusCode).body(responseObj.toString());
+	}
+
+	/**
+	 * This method is used to validate answer details that come from the users and at the same time it creates the
+	 * answer document that will be saved to elasticsearch.
+	 * 
+	 * @param answerDetailsObj it is the object of answer details from the user by requests.
+	 * @param responseObj      it is the response object that will be sent to the user.
+	 * @param answerObj        it is the object of the document that will be save to index.
+	 * @return a bool value that indicates if the answers are valid.
+	 */
+	public boolean validateAndCreateAnswerDocument(JsonObject answerDetailsObj, JsonObject responseObj,
+			JsonObject answerObj) {
+		boolean hasValidAnswers = true;
 		for (Entry<String, JsonElement> key : answerDetailsObj.entrySet()) {
 			JsonObject subAnswerObj = new JsonObject();
 			subAnswerObj.addProperty(Constants.QUESTION, key.getKey());
-			subAnswerObj.addProperty(Constants.ANSWER, key.getValue().getAsString());
-			answerObj.get(Constants.ANSWERS).getAsJsonArray().add(subAnswerObj);
-		}
-		String nickname = answerObj.get(Constants.NICKNAME_ATTRIBUTE).getAsString();
-		String id = nickname + "_" + category;
-		String document = getById(indexName, id);
-		if (document == null) {
-			String docId = indexDocument(indexName, answerObj, id);
-			if (docId != null) {
-				responseObj.addProperty(Constants.RESPONSE,
-						String.format(Constants.ErrorMessages.ANSWERS_WERE_SAVED_FOR_THE_S_CATEGORY, category));
+			if (key.getValue() != null && !key.getValue().getAsString().equals("")) {
+				subAnswerObj.addProperty(Constants.ANSWER, key.getValue().getAsString());
+				answerObj.get(Constants.ANSWERS).getAsJsonArray().add(subAnswerObj);
 			} else {
 				responseObj.addProperty(Constants.RESPONSE,
-						Constants.ErrorMessages.UNEXPECTED_ERROR_OCCUR_PLEASE_TRY_AGAIN);
+						Constants.ErrorMessages.YOUR_ANSWERS_COULD_NOT_BE_SAVED_PLEASE_BE_SURE_THAT_YOU_ANSWERED_ALL_QUESTIONS);
+				hasValidAnswers = false;
+				break;
 			}
-		} else {
-			responseObj.addProperty(Constants.RESPONSE, String.format(
-					Constants.ErrorMessages.ANSWERS_WERE_SAVED_BEFORE_FOR_THE_S_CATEGORY_BY_THE_NICKNAME_S_PLEASE_USE_A_DIFFERENT_NICKNAME,
-					category, nickname));
 		}
-		logger.info(String.format("saved answer details for category %s! answerObj %s! response %s!", category,
-				answerObj.toString(), responseObj.toString()));
-		return responseObj;
+		return hasValidAnswers;
 	}
 
-	public String indexDocument(String indexName, JsonObject answerObj, String id) throws IOException {
+	/**
+	 * This method is used to index then given answerObj documents to the given index using the given id.
+	 * 
+	 * @param indexName it is the name of the index that document will be indexed.
+	 * @param answerObj it is the answer object that will be indexed to the given index.
+	 * @param id        it is the id of the document that will be used to index document into the given index.
+	 * @return a doc id from the elastic search
+	 * @throws Exception
+	 */
+	public String indexDocument(String indexName, JsonObject answerObj, String id) throws Exception {
 		IndexRequest insertRequest = new IndexRequest(indexName);
 		if (id != null) {
 			insertRequest.id(id);
 		}
 		insertRequest.source(answerObj.toString(), XContentType.JSON);
-		String docId = client.index(insertRequest, RequestOptions.DEFAULT).getId();
-		return docId;
+		return client.index(insertRequest, RequestOptions.DEFAULT).getId();
 	}
 
 	/**

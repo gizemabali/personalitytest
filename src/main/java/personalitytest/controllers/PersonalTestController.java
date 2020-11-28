@@ -26,9 +26,10 @@ import personalitytest.config.ApiConfig;
  * @author gizemabali
  *
  */
+
 @RestController
 public class PersonalTestController {
-
+	
 	private static final Logger logger = LogManager.getLogger(ElasticClientOperations.class);
 
 	/**
@@ -88,9 +89,8 @@ public class PersonalTestController {
 	public ResponseEntity<String> saveAnswers(@PathVariable String category, @RequestBody String answerDetails) {
 		try {
 			JsonObject answerDetailsObj = JsonParser.parseString(answerDetails).getAsJsonObject();
-			String string = ElasticClientOperations.getInstance()
-					.saveAnswerDetails(category, answerDetailsObj, ApiConfig.getAnswerIndexName()).toString();
-			return ResponseEntity.ok(string);
+			return ElasticClientOperations.getInstance()
+					.saveAnswerDetails(category, answerDetailsObj, ApiConfig.getAnswerIndexName());
 		} catch (Exception e) {
 			logger.error(Constants.ErrorMessages.SAVE_ANSWERS_ERROR, e);
 			return sendErrorResponse();
